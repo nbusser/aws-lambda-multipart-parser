@@ -9,18 +9,16 @@ function getBoundary(event) {
   return getValueIgnoringKeyCase(event.headers, "Content-Type").split("=")[1];
 }
 
-module.exports.parse = (event, spotText, encoding) => {
-  if (encoding === undefined) {
-    encoding = "binary";
-  }
+module.exports.parse = (event, spotText) => {
   const boundary = getBoundary(event);
   const result = {};
   event.body.split(boundary).forEach((item) => {
     if (/filename=".+"/g.test(item)) {
+      const contentType = item.match(/Content-Type:\s.+/g)[0].slice(14);
       result[item.match(/name=".+";/g)[0].slice(6, -2)] = {
         type: "file",
         filename: item.match(/filename=".+"/g)[0].slice(10, -1),
-        contentType: item.match(/Content-Type:\s.+/g)[0].slice(14),
+        contentType,
         content: spotText
           ? Buffer.from(
               item.slice(
@@ -29,7 +27,7 @@ module.exports.parse = (event, spotText, encoding) => {
                   4,
                 -4
               ),
-              encoding
+              contentType === "text/csv" ? "utf-8" : "binary"
             )
           : item.slice(
               item.search(/Content-Type:\s.+/g) +
